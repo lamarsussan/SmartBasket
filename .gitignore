@@ -22,3 +22,12 @@ data/cache/
 
 # Temporary files
 *.log
+
+# Local debug and temporary test scripts
+debug_hazi_promos.py
+debug_store_fields.py
+test_basket_promo.py
+test_hazi_hinam_bundle.py
+test_promotions.py
+test_shufersal_promo_types.py
+test_shufersal_regular_promo.py
