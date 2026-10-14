@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>SmartBasket</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+    <!-- ============================================
+         HERO
+    ============================================= -->
+
+    <section class="top-hero">
+
+        <div class="top-hero-row">
+
+            <div class="brand-area">
+
+                <div class="brand-icon">
+                    🛒
+                </div>
+
+                <div>
+
+                    <h1>
+                        SmartBasket
+                    </h1>
+
+                    <p>
+                        Compare your grocery basket
+                        across supermarkets
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ============================================
+         LOCATION
+    ============================================= -->
+
+    <section class="location-panel">
+
+        <div class="location-main-row">
+
+            <div class="location-left">
+
+                <div class="location-pin">
+                    📍
+                </div>
+
+                <div>
+
+                    <div class="location-city">
+                        {{ selected_city }}
+                    </div>
+
+                    <div class="location-subtitle">
+                        Comparing prices and promotions
+                        for your selected branches
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <a
+                href="/change-location"
+                class="change-location"
+            >
+                Change location
+            </a>
+
+        </div>
+
+
+        {% if selected_stores %}
+
+            <div class="selected-branches">
+
+                {% for chain, store in selected_stores.items() %}
+
+                    <div class="branch-chip">
+
+                        <strong>
+                            {{ chain }}
+                        </strong>
+
+                        <span>
+                            ·
+                        </span>
+
+                        <span class="product-name">
+                            {{ store.name }}
+                        </span>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+
+
+    <!-- ============================================
+         PROMOTION OFFER
+    ============================================= -->
+
+    {% if pending_offer %}
+
+        <section class="card promotion-offer">
+
+            <div class="promotion-badge">
+                Special promotion
+            </div>
+
+            <h2>
+                Promotion available
+            </h2>
+
+            <p class="product-name">
+                {{ pending_offer.product_name }}
+            </p>
+
+            <p>
+                You requested
+
+                <strong>
+                    {{ pending_offer.requested_quantity }}
+                </strong>
+
+                item(s).
+            </p>
+
+
+            <div class="offer-box">
+
+                <strong>
+                    {{ pending_offer.chain }}
+                </strong>
+
+                <span>
+                    has a promotion:
+                </span>
+
+                <div class="offer-price">
+
+                    {{ pending_offer.required_quantity }}
+
+                    for
+
+                    ₪{{ "%.2f"|format(
+                        pending_offer.promotion_total
+                    ) }}
+
+                </div>
+
+
+                <p class="product-name">
+                    {{ pending_offer.description }}
+                </p>
+
+            </div>
+
+
+            <p>
+                Would you like to increase the quantity
+                and use the promotion?
+            </p>
+
+
+            <div class="promotion-actions">
+
+                <form
+                    action="/promotion-choice"
+                    method="post"
+                >
+
+                    <input
+                        type="hidden"
+                        name="barcode"
+                        value="{{ pending_offer.barcode }}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="requested_quantity"
+                        value="{{ pending_offer.requested_quantity }}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="required_quantity"
+                        value="{{ pending_offer.required_quantity }}"
+                    >
+
+                    <button
+                        type="submit"
+                        name="action"
+                        value="accept"
+                    >
+                        Yes, use promotion
+                    </button>
+
+                </form>
+
+
+                <form
+                    action="/promotion-choice"
+                    method="post"
+                >
+
+                    <input
+                        type="hidden"
+                        name="barcode"
+                        value="{{ pending_offer.barcode }}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="requested_quantity"
+                        value="{{ pending_offer.requested_quantity }}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="required_quantity"
+                        value="{{ pending_offer.required_quantity }}"
+                    >
+
+                    <button
+                        type="submit"
+                        name="action"
+                        value="decline"
+                        class="secondary"
+                    >
+                        No, keep
+                        {{ pending_offer.requested_quantity }}
+                    </button>
+
+                </form>
+
+            </div>
+
+        </section>
+
+    {% endif %}
+
+
+
+    <!-- ============================================
+         SEARCH
+    ============================================= -->
+
+    <section class="card">
+
+        <div class="section-title-row">
+
+            <h2>
+                Add a product
+            </h2>
+
+
+            {% if selected_stores %}
+
+                <span class="count-badge">
+
+                    Comparing
+                    {{ selected_stores | length }}
+                    supermarket(s)
+
+                </span>
+
+            {% endif %}
+
+        </div>
+
+
+        <form
+            action="/search"
+            method="post"
+            class="search-form"
+        >
+
+            <input
+                type="text"
+                name="query"
+                placeholder="Search for a product..."
+                value="{{ query or '' }}"
+                required
+            >
+
+            <button type="submit">
+                Search
+            </button>
+
+        </form>
+
+    </section>
+
+
+
+    <!-- ============================================
+         SEARCH RESULTS
+    ============================================= -->
+
+    {% if candidates %}
+
+        <section class="card">
+
+            <h2>
+                Search results
+            </h2>
+
+
+            {% for result in candidates %}
+
+                <div class="product">
+
+                    <div class="product-top-row">
+
+                        <div>
+
+                            <h3 class="product-name">
+                                {{ result.product.name }}
+                            </h3>
+
+                            <p class="barcode">
+                                Barcode:
+                                {{ result.product.barcode }}
+                            </p>
+
+                        </div>
+
+
+                        <span class="availability-badge">
+
+                            Available in
+
+                            {{ result.chain_count }}
+
+                            /
+
+                            {{ selected_stores | length }}
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="prices">
+
+                        {% for chain, product
+                           in result.chain_products.items() %}
+
+                            <div class="price-chip">
+
+                                <strong>
+                                    {{ chain }}
+                                </strong>
+
+                                <span>
+                                    ₪{{ "%.2f"|format(
+                                        product.price
+                                    ) }}
+                                </span>
+
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+
+                    <form
+                        action="/add"
+                        method="post"
+                        class="add-form"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="barcode"
+                            value="{{ result.product.barcode }}"
+                        >
+
+
+                        <label>
+                            Quantity
+                        </label>
+
+
+                        <input
+                            type="number"
+                            name="quantity"
+                            min="1"
+                            value="1"
+                            required
+                        >
+
+
+                        <button type="submit">
+                            Add to basket
+                        </button>
+
+                    </form>
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+    {% endif %}
+
+
+
+    <!-- ============================================
+         BASKET
+    ============================================= -->
+
+    <section class="card">
+
+        <div class="section-title-row">
+
+            <h2>
+                Your basket
+            </h2>
+
+
+            {% if basket %}
+
+                <span class="basket-count">
+                    {{ basket | length }}
+                    item(s)
+                </span>
+
+            {% endif %}
+
+        </div>
+
+
+        {% if basket %}
+
+            <div class="basket-list">
+
+                {% for item in basket %}
+
+                    <div class="basket-item">
+
+                        <div class="basket-item-main">
+
+                            <span class="basket-product-icon">
+                                🛍️
+                            </span>
+
+                            <span class="product-name">
+                                {{ item.name }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="basket-item-controls">
+
+                            <!-- UPDATE QUANTITY -->
+
+                            <form
+                                action="/basket/update"
+                                method="post"
+                                class="basket-update-form"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="item_index"
+                                    value="{{ loop.index0 }}"
+                                >
+
+
+                                <input
+                                    type="number"
+                                    name="quantity"
+                                    min="1"
+                                    value="{{ item.quantity }}"
+                                    required
+                                    class="basket-quantity-input"
+                                >
+
+
+                                <button
+                                    type="submit"
+                                    class="basket-update-button"
+                                >
+                                    Update
+                                </button>
+
+                            </form>
+
+
+                            <!-- REMOVE ITEM -->
+
+                            <form
+                                action="/basket/remove"
+                                method="post"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="item_index"
+                                    value="{{ loop.index0 }}"
+                                >
+
+
+                                <button
+                                    type="submit"
+                                    class="basket-remove-button"
+                                >
+                                    Remove
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="actions">
+
+                <form
+                    action="/compare"
+                    method="post"
+                >
+
+                    <button
+                        type="submit"
+                        class="compare-button"
+                    >
+                        Compare basket
+                    </button>
+
+                </form>
+
+
+                <form
+                    action="/clear"
+                    method="post"
+                >
+
+                    <button
+                        type="submit"
+                        class="secondary"
+                    >
+                        Clear basket
+                    </button>
+
+                </form>
+
+            </div>
+
+
+        {% else %}
+
+            <div class="empty-basket">
+
+                <div class="empty-icon">
+                    🧺
+                </div>
+
+                <p>
+                    Your basket is empty.
+                </p>
+
+                <span>
+                    Search for a product above
+                    to start comparing prices.
+                </span>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+
+
+    <!-- ============================================
+         WINNER
+    ============================================= -->
+
+    {% if winner %}
+
+        <section class="winner-summary">
+
+            <div class="winner-label">
+                🏆 Best price
+            </div>
+
+
+            <div class="winner-chain">
+                {{ winner.chain }}
+            </div>
+
+
+            <div class="winner-price">
+
+                ₪{{ "%.2f"|format(
+                    winner.total
+                ) }}
+
+            </div>
+
+
+            {% if winner.savings_vs_next > 0 %}
+
+                <div class="winner-saving">
+
+                    You save
+
+                    <strong>
+
+                        ₪{{ "%.2f"|format(
+                            winner.savings_vs_next
+                        ) }}
+
+                    </strong>
+
+                    compared with the next
+                    cheapest complete basket.
+
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    {% endif %}
+
+
+
+    <!-- ============================================
+         COMPARISON RESULTS
+    ============================================= -->
+
+    {% if results %}
+
+        <section class="card">
+
+            <h2>
+                Basket comparison
+            </h2>
+
+
+            <div class="comparison-grid">
+
+                {% for result in results %}
+
+                    <div
+                        class="
+                            chain-result
+
+                            {% if result.is_winner %}
+                                winner-result
+                            {% endif %}
+                        "
+                    >
+
+                        <div class="chain-header">
+
+                            <h3>
+                                {{ result.chain }}
+                            </h3>
+
+
+                            {% if result.is_winner %}
+
+                                <span class="best-badge">
+                                    Cheapest
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+
+                        {% for item in result.found_items %}
+
+                            <div class="result-item">
+
+                                <span class="product-name">
+
+                                    {{ item.name }}
+
+                                    ×
+
+                                    {{ item.quantity }}
+
+                                </span>
+
+
+                                <strong>
+
+                                    ₪{{ "%.2f"|format(
+                                        item.total
+                                    ) }}
+
+                                </strong>
+
+                            </div>
+
+
+                            {% if item.promotion %}
+
+                                <div class="promotion">
+
+                                    <strong>
+                                        Promotion:
+                                    </strong>
+
+
+                                    <span class="product-name">
+                                        {{ item.promotion.description }}
+                                    </span>
+
+
+                                    {% if item.regular_total > item.total %}
+
+                                        <div class="item-saving">
+
+                                            Saved
+
+                                            ₪{{ "%.2f"|format(
+                                                item.regular_total
+                                                - item.total
+                                            ) }}
+
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+
+
+                        {% if result.missing_items %}
+
+                            <div class="missing">
+
+                                <strong>
+                                    Missing products:
+                                </strong>
+
+
+                                {% for item in result.missing_items %}
+
+                                    <div class="product-name">
+
+                                        {{ item.name }}
+
+                                        ×
+
+                                        {{ item.quantity }}
+
+                                    </div>
+
+                                {% endfor %}
+
+                            </div>
+
+                        {% endif %}
+
+
+
+                        {% if result.promotion_savings > 0 %}
+
+                            <div class="basket-saving">
+
+                                Promotion savings:
+
+                                <strong>
+
+                                    ₪{{ "%.2f"|format(
+                                        result.promotion_savings
+                                    ) }}
+
+                                </strong>
+
+                            </div>
+
+                        {% endif %}
+
+
+
+                        <div class="total">
+
+                            {% if result.is_complete %}
+
+                                Total:
+
+                            {% else %}
+
+                                Known subtotal:
+
+                            {% endif %}
+
+
+                            <strong>
+
+                                ₪{{ "%.2f"|format(
+                                    result.total
+                                ) }}
+
+                            </strong>
+
+                        </div>
+
+
+
+                        {% if
+                            result.is_complete
+                            and not result.is_winner
+                            and result.difference_from_winner is not none
+                            and result.difference_from_winner > 0
+                        %}
+
+                            <div class="more-expensive">
+
+                                ₪{{ "%.2f"|format(
+                                    result.difference_from_winner
+                                ) }}
+
+                                more than the cheapest basket
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+    {% endif %}
+
+
+    <footer>
+
+        SmartBasket · Real supermarket data ·
+        Smarter grocery shopping
+
+    </footer>
+
+</div>
+
+</body>
+
+</html>

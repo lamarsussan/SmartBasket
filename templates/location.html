@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        SmartBasket | Choose Location
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/static/location.css"
+    >
+</head>
+
+<body>
+
+<div class="page-shell">
+
+    <header class="hero">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                🛒
+            </div>
+
+            <div>
+                <h1>SmartBasket</h1>
+
+                <p>
+                    Compare your basket where
+                    you actually shop.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="hero-badge">
+            Smart grocery comparison
+        </div>
+
+    </header>
+
+
+    <main class="main-content">
+
+        <section class="intro-card">
+
+            <div class="step-number">
+                1
+            </div>
+
+            <div>
+
+                <h2>
+                    Where are you shopping?
+                </h2>
+
+                <p>
+                    Prices and promotions can change
+                    between branches. Choose your city first.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="card">
+
+            <form
+                action="/location/city"
+                method="post"
+                class="city-form"
+            >
+
+                <label for="city">
+                    City
+                </label>
+
+                <div class="city-row">
+
+                    <select
+                        id="city"
+                        name="city"
+                        required
+                    >
+
+                        <option value="">
+                            Choose a city...
+                        </option>
+
+                        {% for city in cities %}
+
+                            <option
+                                value="{{ city }}"
+                                {% if city == selected_city %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ city }}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Find stores
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+
+        {% if selected_city %}
+
+            <section class="location-heading">
+
+                <div class="step-number">
+                    2
+                </div>
+
+                <div>
+
+                    <h2>
+                        Choose branches
+                    </h2>
+
+                    <p>
+                        Stores available in
+                        <strong>
+                            {{ selected_city }}
+                        </strong>
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <form
+                action="/location/stores"
+                method="post"
+            >
+
+                <div class="stores-grid">
+
+
+                    <!-- SHUFERSAL -->
+
+                    <section
+                        class="store-card shufersal-card"
+                    >
+
+                        <div class="store-icon">
+                            🛍️
+                        </div>
+
+                        <div class="store-title">
+
+                            <h3>
+                                Shufersal
+                            </h3>
+
+                            <span>
+                                {{ stores_by_chain["Shufersal"] | length }}
+                                stores
+                            </span>
+
+                        </div>
+
+
+                        {% if stores_by_chain["Shufersal"] %}
+
+                            <select
+                                name="shufersal_store"
+                            >
+
+                                {% if stores_by_chain["Shufersal"] | length > 1 %}
+
+                                    <option value="">
+                                        Don't compare
+                                    </option>
+
+                                {% endif %}
+
+
+                                {% for store in stores_by_chain["Shufersal"] %}
+
+                                    <option
+                                        value="{{ store.store_id }}"
+
+                                        {% if
+                                            selected_stores.get("Shufersal") == store.store_id
+                                            or
+                                            (
+                                                stores_by_chain["Shufersal"] | length == 1
+                                                and
+                                                not selected_stores.get("Shufersal")
+                                            )
+                                        %}
+                                            selected
+                                        {% endif %}
+                                    >
+
+                                        {{ store.name }}
+                                        —
+                                        {{ store.address }}
+
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        {% else %}
+
+                            <div class="no-store">
+
+                                No branch found in
+                                this city.
+
+                            </div>
+
+                        {% endif %}
+
+                    </section>
+
+
+
+                    <!-- CARREFOUR -->
+
+                    <section
+                        class="store-card carrefour-card"
+                    >
+
+                        <div class="store-icon">
+                            🛒
+                        </div>
+
+                        <div class="store-title">
+
+                            <h3>
+                                Carrefour
+                            </h3>
+
+                            <span>
+                                {{ stores_by_chain["Carrefour"] | length }}
+                                stores
+                            </span>
+
+                        </div>
+
+
+                        {% if stores_by_chain["Carrefour"] %}
+
+                            <select
+                                name="carrefour_store"
+                            >
+
+                                {% if stores_by_chain["Carrefour"] | length > 1 %}
+
+                                    <option value="">
+                                        Don't compare
+                                    </option>
+
+                                {% endif %}
+
+
+                                {% for store in stores_by_chain["Carrefour"] %}
+
+                                    <option
+                                        value="{{ store.store_id }}"
+
+                                        {% if
+                                            selected_stores.get("Carrefour") == store.store_id
+                                            or
+                                            (
+                                                stores_by_chain["Carrefour"] | length == 1
+                                                and
+                                                not selected_stores.get("Carrefour")
+                                            )
+                                        %}
+                                            selected
+                                        {% endif %}
+                                    >
+
+                                        {{ store.name }}
+                                        —
+                                        {{ store.address }}
+
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        {% else %}
+
+                            <div class="no-store">
+
+                                No branch found in
+                                this city.
+
+                            </div>
+
+                        {% endif %}
+
+                    </section>
+
+
+
+                    <!-- HAZI HINAM -->
+
+                    <section
+                        class="store-card hazi-card"
+                    >
+
+                        <div class="store-icon">
+                            🧺
+                        </div>
+
+                        <div class="store-title">
+
+                            <h3>
+                                Hazi Hinam
+                            </h3>
+
+                            <span>
+                                {{ stores_by_chain["Hazi Hinam"] | length }}
+                                stores
+                            </span>
+
+                        </div>
+
+
+                        {% if stores_by_chain["Hazi Hinam"] %}
+
+                            <select
+                                name="hazi_hinam_store"
+                            >
+
+                                {% if stores_by_chain["Hazi Hinam"] | length > 1 %}
+
+                                    <option value="">
+                                        Don't compare
+                                    </option>
+
+                                {% endif %}
+
+
+                                {% for store in stores_by_chain["Hazi Hinam"] %}
+
+                                    <option
+                                        value="{{ store.store_id }}"
+
+                                        {% if
+                                            selected_stores.get("Hazi Hinam") == store.store_id
+                                            or
+                                            (
+                                                stores_by_chain["Hazi Hinam"] | length == 1
+                                                and
+                                                not selected_stores.get("Hazi Hinam")
+                                            )
+                                        %}
+                                            selected
+                                        {% endif %}
+                                    >
+
+                                        {{ store.name }}
+                                        —
+                                        {{ store.address }}
+
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        {% else %}
+
+                            <div class="no-store">
+
+                                No branch found in
+                                this city.
+
+                            </div>
+
+                        {% endif %}
+
+                    </section>
+
+                </div>
+
+
+                <div class="continue-area">
+
+                    <p class="hint">
+                        Available branches are selected automatically.
+                    </p>
+
+                    <button
+                        type="submit"
+                        class="continue-button"
+                    >
+                        Continue to SmartBasket →
+                    </button>
+
+                </div>
+
+            </form>
+
+        {% endif %}
+
+    </main>
+
+
+    <footer>
+        SmartBasket • Real store data •
+        Smarter grocery shopping
+    </footer>
+
+</div>
+
+</body>
+</html>
