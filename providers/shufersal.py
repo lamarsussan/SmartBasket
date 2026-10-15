@@ -1,5 +1,4 @@
 import gzip
-import time
 import requests
 import xml.etree.ElementTree as ET
 
@@ -25,7 +24,6 @@ PRICE_FILE_CACHE = {}
 def get_store_page(
     store_id,
     page=1,
-    retries=2,
 ):
     params = {
         "catID": 0,
@@ -35,39 +33,28 @@ def get_store_page(
         "storeId": int(store_id),
     }
 
-    last_error = None
+    try:
+        response = requests.get(
+            TABLE_URL,
+            params=params,
+            timeout=4,
+        )
 
-    for attempt in range(
-        1,
-        retries + 1,
-    ):
-        try:
-            response = requests.get(
-                TABLE_URL,
-                params=params,
-                timeout=8,
-            )
+        response.raise_for_status()
 
-            response.raise_for_status()
+        return response.text
 
-            return response.text
+    except requests.RequestException as error:
 
-        except requests.RequestException as error:
-            last_error = error
+        print(
+            f"Shufersal request failed: "
+            f"{error}"
+        )
 
-            print(
-                f"Shufersal request failed "
-                f"(attempt {attempt}/{retries}): "
-                f"{error}"
-            )
-
-            if attempt < retries:
-                time.sleep(0.5)
-
-    raise RuntimeError(
-        f"Could not load Shufersal "
-        f"file list for store {store_id}"
-    ) from last_error
+        raise RuntimeError(
+            f"Could not load Shufersal "
+            f"file list for store {store_id}"
+        ) from error
 
 
 def extract_filename(
@@ -92,6 +79,7 @@ def find_pricefull_file(
 
     # First check RAM.
     if store_id in PRICE_FILE_CACHE:
+
         print(
             f"Memory cache: Shufersal "
             f"PriceFull info store "
@@ -111,6 +99,7 @@ def find_pricefull_file(
         1,
         5,
     ):
+
         print(
             f"Checking filtered page "
             f"{page}..."
@@ -220,7 +209,7 @@ def find_pricefull_file(
 def download_xml(url):
     response = requests.get(
         url,
-        timeout=60,
+        timeout=30,
     )
 
     response.raise_for_status()
@@ -293,6 +282,7 @@ def load_products(
             price = float(
                 price_text
             )
+
         except ValueError:
             continue
 
@@ -309,6 +299,7 @@ def load_products(
                 quantity = float(
                     quantity_text
                 )
+
             except ValueError:
                 pass
 

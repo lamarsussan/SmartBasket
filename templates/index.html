@@ -787,13 +787,51 @@
                                 </span>
 
 
-                                <strong>
+                                {% if item.promotion
+                                      and item.regular_total > item.total %}
 
-                                    ₪{{ "%.2f"|format(
-                                        item.total
-                                    ) }}
+                                    <div class="promotion-price-details">
 
-                                </strong>
+                                        <div>
+                                            Regular price:
+
+                                            <span
+                                                style="
+                                                    text-decoration: line-through;
+                                                    opacity: 0.7;
+                                                "
+                                            >
+                                                ₪{{ "%.2f"|format(
+                                                    item.regular_total
+                                                ) }}
+                                            </span>
+                                        </div>
+
+                                        <div>
+
+                                            <strong>
+                                                Promotion price:
+
+                                                ₪{{ "%.2f"|format(
+                                                    item.total
+                                                ) }}
+                                            </strong>
+
+                                        </div>
+
+                                    </div>
+
+                                {% else %}
+
+                                    <strong>
+
+                                        ₪{{ "%.2f"|format(
+                                            item.total
+                                        ) }}
+
+                                    </strong>
+
+                                {% endif %}
 
                             </div>
 
@@ -816,7 +854,7 @@
 
                                         <div class="item-saving">
 
-                                            Saved
+                                            You save:
 
                                             ₪{{ "%.2f"|format(
                                                 item.regular_total

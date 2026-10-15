@@ -1,143 +1,328 @@
 # SmartBasket
 
-SmartBasket is a web application that compares the cost of a grocery basket across selected supermarket branches in Israel.
+SmartBasket is a web application for comparing the cost of a grocery basket across supermarket branches in Israel.
 
-The application uses official supermarket price-transparency data and allows the user to choose a city and specific branches, search for products, build a basket, apply supported promotions, and compare the final basket price between supermarkets.
+The application uses public supermarket price-transparency data and allows users to select a city and specific branches, search for products, build a basket, apply supported promotions, and compare the final basket price between supermarkets.
+
+## Live Demo
+
+https://smartbasket-5gkh.onrender.com
 
 ## Main Features
 
 - Select a city and supermarket branches
+- Load branch-specific product prices
+- Load branch-specific promotions
 - Search real supermarket products
-- Compare the same product across chains
+- Search products by barcode
+- Compare matching products across chains
 - Build a shopping basket
 - Update product quantities
 - Remove products from the basket
-- Detect supported quantity-based promotions
-- Compare total basket prices
+- Detect supported promotions
+- Offer quantity increases when a promotion requires more units
+- Show regular price and promotion price
+- Calculate promotion savings
+- Compare complete basket prices
 - Show the cheapest complete basket
-- Continue working even if one retailer's data is temporarily unavailable
-- In-memory and disk caching to reduce repeated network requests
+- Continue working when one retailer's external data is temporarily unavailable
+- Use disk and memory caching to reduce repeated network requests
 
 ## Supported Supermarkets
 
-Currently supported:
+SmartBasket currently integrates with:
 
-- Shufersal
 - Carrefour
+- Shufersal
 - Hazi Hinam
+- Netto Hissachon
 
-The exact available branches depend on the selected city.
+The application uses branch-specific store IDs. Product and promotion data are requested for the selected branch rather than using one fixed supermarket location.
 
-## Data Source
+Branch availability depends on the store information published by each retailer.
 
-SmartBasket uses official supermarket price-transparency files published by the retailers.
+## Branch-Specific Data
 
-The project downloads and parses product, store, and promotion files directly from the retailers' public price-transparency systems.
+The general flow is:
 
-## How It Works
+City → Selected branch → Store ID → PriceFull + PromoFull
 
-1. The user selects a city.
-2. SmartBasket shows the available supermarket branches in that city.
-3. The selected branch IDs are stored in the user session.
-4. Product data is loaded for those branches.
-5. The user searches for products and adds them to a basket.
-6. SmartBasket checks whether each product exists in each selected supermarket.
-7. Supported promotions are applied when relevant.
-8. The application calculates the basket total for each supermarket.
-9. The cheapest complete basket is displayed.
+The same retailer provider can therefore work with different branches.
+
+Branch-specific product and promotion loading has been tested successfully with multiple locations, including:
+
+- Carrefour store 002 in Ashkelon
+- Netto Hissachon store 084 in Bat Yam
+- Hazi Hinam store 202 in Holon
+
+Shufersal is also implemented using branch-specific store IDs, although its public server can sometimes be unavailable or time out.
+
+## Data Sources
+
+SmartBasket uses public supermarket price-transparency data.
+
+Depending on the retailer, the application retrieves files such as:
+
+- Stores
+- PriceFull
+- PromoFull
+
+Each retailer publishes its files differently, so SmartBasket contains separate provider modules for retailer-specific downloading and parsing.
+
+After parsing, retailer data is converted into common internal models used by the rest of the application.
 
 ## Architecture
 
-The project is separated into several simple components:
+### `app.py`
 
-- `app.py`  
-  FastAPI routes, session handling, page rendering, and application flow.
+FastAPI routes, session handling, form processing, page rendering, and application flow.
 
-- `models.py`  
-  Data classes used to represent products, stores, and promotions.
+### `models.py`
 
-- `providers/`  
-  Retailer-specific code for downloading and parsing official price files.
+Common models representing products, stores, and promotions.
 
-- `store_data.py`  
-  Loads product and promotion data for the branches selected by the user.
+### `providers/`
 
-- `stores_loader.py`  
-  Loads supermarket branch information.
+Retailer-specific integrations for downloading and parsing product and promotion data.
 
-- `localities.py`  
-  Converts Israeli locality codes into readable city names.
+Supported provider integrations include:
 
-- `search.py`  
-  Product search and barcode-based matching.
+- Carrefour
+- Shufersal
+- Hazi Hinam
+- Netto Hissachon
 
-- `basket.py`  
-  Basket comparison logic and promotion integration.
+### `store_data.py`
 
-- `promotion_engine.py`  
-  Calculates supported promotions.
+Loads product and promotion data for selected branches.
 
-- `data_cache.py`  
-  Disk caching for downloaded data.
+It also manages in-memory caching and retailer failure handling.
 
-- `templates/`  
-  HTML templates.
+### `stores_loader.py`
 
-- `static/`  
-  CSS styling.
+Loads branch information and maps stores to Israeli localities.
+
+Some public retailer data contains incomplete city information. When possible, SmartBasket uses a small fallback based on the branch name to recover the locality.
+
+### `localities.py`
+
+Maps Israeli locality codes to readable city names.
+
+### `search.py`
+
+Implements product search using:
+
+- exact barcode matching
+- word-based product-name matching
+- simple text normalization
+
+The search intentionally uses a transparent and understandable scoring approach.
+
+### `basket.py`
+
+Compares the user's basket across selected supermarkets.
+
+It checks product availability, calculates totals, applies supported promotions, and determines the cheapest complete basket.
+
+### `promotion_engine.py`
+
+Interprets and calculates supported promotion formats.
+
+### `data_cache.py`
+
+Provides disk caching for retailer data.
+
+### `templates/`
+
+Jinja2 HTML templates.
+
+### `static/`
+
+CSS styling.
 
 ## Caching
 
-Retailer files can be large and external servers can sometimes be slow.
+Retailer files can contain thousands of products and promotions and external servers can sometimes be slow.
 
 SmartBasket uses two cache levels:
 
-1. Disk cache  
-   Avoids downloading the same data repeatedly between application runs.
+### Disk Cache
 
-2. Memory cache  
-   Avoids loading the same branch data repeatedly while the server is running.
+Avoids downloading and parsing the same retailer data repeatedly between application runs.
 
-If promotion data for a retailer is temporarily unavailable, SmartBasket can continue using the available product data instead of crashing.
+### Memory Cache
+
+Reuses branch data that has already been loaded during the current server process.
+
+The application also remembers failed retailer requests during the current server run so that the same unavailable source is not contacted on every user action.
+
+## Failure Handling
+
+SmartBasket depends on external retailer systems that are outside the application's control.
+
+If one retailer is temporarily unavailable, SmartBasket does not crash the entire comparison.
+
+Instead, it:
+
+- catches the loading error
+- marks the retailer data as unavailable
+- displays a warning
+- continues working with the remaining supermarkets
+
+This behavior is especially important for retailer servers that occasionally respond slowly or time out.
 
 ## Promotions
 
-The current version supports basic quantity-based promotions such as:
+SmartBasket supports basic promotion formats that can be safely calculated from the public promotion files.
 
-- 2 items for a fixed price
-- 3 items for a fixed price
+Examples include:
 
-SmartBasket does not automatically increase the user's requested quantity.
+- one item at a promotional price
+- two items for a fixed price
+- three items for a fixed price
+- similar quantity-based bundle promotions
 
-If the user requests fewer items than required for a promotion, the application can offer the user the option to increase the quantity.
+If a promotion requires more items than the user requested, SmartBasket can offer the user the option to increase the basket quantity.
+
+The comparison can display:
+
+- regular price
+- promotion price
+- promotion description
+- amount saved
+
+Promotions that depend on conditions the application cannot reliably verify are not guaranteed to be applied.
+
+Examples include:
+
+- credit-card promotions
+- membership-only promotions
+- coupons
+- complex conditional promotions
+- promotions requiring unrelated additional purchases
+
+## Retailer Notes
+
+### Carrefour
+
+Carrefour supports branch-specific product and promotion loading and has been tested successfully with multiple store IDs.
+
+### Netto Hissachon
+
+Netto Hissachon uses the Super Sapir / Bina price-transparency system.
+
+SmartBasket dynamically loads Netto branches from the published Stores file.
+
+Both product and promotion data are loaded according to the selected store ID.
+
+### Hazi Hinam
+
+Hazi Hinam supports branch-specific product and promotion loading.
+
+The integration has been tested successfully with a branch other than the original default branch.
+
+### Shufersal
+
+Shufersal is implemented using branch-specific product and promotion loading.
+
+However, Shufersal's public price-transparency endpoint can sometimes be slow or unavailable and may time out.
+
+SmartBasket handles this situation without crashing.
 
 ## Limitations
 
-This is a portfolio MVP and intentionally keeps the implementation simple.
+This is a portfolio project and intentionally keeps the implementation understandable and maintainable.
 
 Current limitations include:
 
-- Not every Israeli supermarket chain is supported.
-- Some retailer servers are occasionally slow or unavailable.
-- Some promotion formats are not supported.
-- Conditional promotions such as credit-card, membership, or coupon promotions are not fully handled.
-- Product matching is primarily based on barcodes and simple text search.
-- Location selection is city-based rather than GPS-distance based.
+- Not every Israeli supermarket chain is supported
+- External retailer systems may occasionally be unavailable
+- Not every possible promotion format is supported
+- Conditional card, membership, and coupon promotions are not fully handled
+- Product matching is based mainly on barcode and simple text matching
+- Location selection is city-based rather than GPS-distance based
+- The project depends on the format and availability of external retailer data
+- Some public store records contain incomplete or inconsistent locality information
 
 ## Technologies
 
 - Python
 - FastAPI
+- Uvicorn
 - Jinja2
 - HTML
 - CSS
 - Requests
 - BeautifulSoup
-- lxml
+- XML parsing
+- Session middleware
 
 ## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/lamarsussan/SmartBasket.git
+cd SmartBasket
+```
 
 Create a virtual environment:
 
 ```bash
 python -m venv .venv
+```
+
+Activate it on macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the development server:
+
+```bash
+uvicorn app:app --reload
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Deployment
+
+The project is deployed on Render.
+
+Production start command:
+
+```bash
+uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
+Live application:
+
+https://smartbasket-5gkh.onrender.com
+
+## Project Goal
+
+The goal of SmartBasket is to demonstrate a practical software project that combines:
+
+- backend web development
+- external data integration
+- parsing structured retailer files
+- data normalization
+- caching
+- failure handling
+- product search
+- basket logic
+- promotion handling
+- branch-specific supermarket comparison
+
+The implementation is intentionally kept simple enough to understand and explain while still working with real external data and real failure cases.

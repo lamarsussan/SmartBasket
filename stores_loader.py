@@ -12,7 +12,9 @@ from data_cache import get_or_load
 from localities import load_localities
 
 
-SHUFERSAL_URL = "https://prices.shufersal.co.il/"
+SHUFERSAL_URL = (
+    "https://prices.shufersal.co.il/"
+)
 
 CARREFOUR_STORES_URL = (
     "https://shilut.carrefour.co.il/"
@@ -20,6 +22,19 @@ CARREFOUR_STORES_URL = (
 
 HAZI_URL = (
     "https://shop.hazi-hinam.co.il/Prices"
+)
+
+NETTO_BASE_URL = (
+    "https://supersapir.binaprojects.com/"
+)
+
+NETTO_FILES_URL = (
+    NETTO_BASE_URL
+    + "MainIO_Hok.aspx"
+)
+
+NETTO_CHAIN_ID = (
+    "7290058156016"
 )
 
 
@@ -47,7 +62,9 @@ def child_text(
     }
 
     for child in list(node):
-        if clean_tag(child.tag) in wanted:
+        if clean_tag(
+            child.tag
+        ) in wanted:
             if child.text:
                 return child.text.strip()
 
@@ -72,6 +89,61 @@ def download_xml(url):
     return content
 
 
+def infer_city_from_store_name(
+    store_name,
+    locality_names,
+):
+    """
+    Some transparency files contain City=0.
+
+    In that case, try to identify the locality
+    from the store name itself.
+    """
+
+    if not store_name:
+        return "", ""
+
+    clean_name = (
+        store_name
+        .replace("*", " ")
+        .replace("ת.", " ")
+        .strip()
+    )
+
+    # First try exact official locality names.
+    for code, city_name in locality_names.items():
+
+        if (
+            city_name
+            and city_name in clean_name
+        ):
+            return (
+                city_name,
+                str(code),
+            )
+
+    # A few retailer names use a shorter form
+    # than the official locality name.
+    aliases = {
+        "מעלות": "מעלות-תרשיחא",
+    }
+
+    for alias, official_name in aliases.items():
+
+        if alias not in clean_name:
+            continue
+
+        for code, city_name in locality_names.items():
+
+            if city_name == official_name:
+                return (
+                    city_name,
+                    str(code),
+                )
+
+    return "", ""
+
+
 def parse_stores_xml(
     xml_bytes,
     chain_name,
@@ -84,6 +156,7 @@ def parse_stores_xml(
     stores = []
 
     for node in root.iter():
+
         if clean_tag(
             node.tag
         ) != "store":
@@ -117,6 +190,7 @@ def parse_stores_xml(
         city = ""
 
         if city_code:
+
             city_code = str(
                 city_code
             ).strip()
@@ -125,6 +199,23 @@ def parse_stores_xml(
                 city_code,
                 "",
             )
+
+        # Some retailers publish City=0.
+        # Try to recover the locality from
+        # the store name instead.
+        if not city:
+
+            inferred_city, inferred_code = (
+                infer_city_from_store_name(
+                    name,
+                    locality_names,
+                )
+            )
+
+            if inferred_city:
+
+                city = inferred_city
+                city_code = inferred_code
 
         address = (
             child_text(
@@ -178,11 +269,14 @@ def parse_stores_xml(
 # ==================================================
 
 def load_shufersal_stores_raw():
+
     print(
         "Finding Shufersal Stores file..."
     )
 
-    locality_names = load_localities()
+    locality_names = (
+        load_localities()
+    )
 
     response = requests.get(
         SHUFERSAL_URL,
@@ -200,7 +294,10 @@ def load_shufersal_stores_raw():
         "html.parser",
     )
 
-    for row in soup.find_all("tr"):
+    for row in soup.find_all(
+        "tr"
+    ):
+
         text = row.get_text(
             " ",
             strip=True,
@@ -231,6 +328,7 @@ def load_shufersal_stores_raw():
         )
 
         if stores:
+
             print(
                 "Found Shufersal Stores file."
             )
@@ -247,11 +345,14 @@ def load_shufersal_stores_raw():
 # ==================================================
 
 def load_carrefour_stores_raw():
+
     print(
         "Finding Carrefour Stores file..."
     )
 
-    locality_names = load_localities()
+    locality_names = (
+        load_localities()
+    )
 
     response = requests.get(
         CARREFOUR_STORES_URL,
@@ -276,6 +377,7 @@ def load_carrefour_stores_raw():
     )
 
     if not files_match:
+
         raise RuntimeError(
             "Could not read Carrefour "
             "Stores file list."
@@ -288,6 +390,7 @@ def load_carrefour_stores_raw():
     candidates = []
 
     for file_info in files:
+
         filename = file_info.get(
             "name",
             "",
@@ -313,6 +416,7 @@ def load_carrefour_stores_raw():
         )
 
     if not candidates:
+
         raise RuntimeError(
             "Could not find Carrefour Stores file."
         )
@@ -329,7 +433,10 @@ def load_carrefour_stores_raw():
     candidate_urls = []
 
     if path_match:
-        path = path_match.group(1)
+
+        path = path_match.group(
+            1
+        )
 
         candidate_urls.append(
             f"{CARREFOUR_STORES_URL}"
@@ -346,7 +453,9 @@ def load_carrefour_stores_raw():
     last_error = None
 
     for url in candidate_urls:
+
         try:
+
             xml_bytes = download_xml(
                 url
             )
@@ -364,6 +473,7 @@ def load_carrefour_stores_raw():
             requests.RequestException,
             ET.ParseError,
         ) as error:
+
             last_error = error
 
     raise RuntimeError(
@@ -377,6 +487,7 @@ def load_carrefour_stores_raw():
 # ==================================================
 
 def hazi_page_url(page):
+
     if page == 1:
         return HAZI_URL
 
@@ -387,15 +498,22 @@ def hazi_page_url(page):
 
 
 def load_hazi_hinam_stores_raw():
+
     print(
         "Finding Hazi Hinam Stores file..."
     )
 
-    locality_names = load_localities()
+    locality_names = (
+        load_localities()
+    )
 
     candidates = []
 
-    for page in range(1, 8):
+    for page in range(
+        1,
+        8,
+    ):
+
         print(
             f"Checking Hazi Hinam page "
             f"{page}...",
@@ -404,7 +522,9 @@ def load_hazi_hinam_stores_raw():
         )
 
         response = requests.get(
-            hazi_page_url(page),
+            hazi_page_url(
+                page
+            ),
             timeout=30,
         )
 
@@ -415,7 +535,10 @@ def load_hazi_hinam_stores_raw():
             "html.parser",
         )
 
-        for row in soup.find_all("tr"):
+        for row in soup.find_all(
+            "tr"
+        ):
+
             text = row.get_text(
                 " ",
                 strip=True,
@@ -451,6 +574,7 @@ def load_hazi_hinam_stores_raw():
     print()
 
     if not candidates:
+
         raise RuntimeError(
             "Could not find Hazi Hinam "
             "Stores file."
@@ -480,6 +604,7 @@ def load_hazi_hinam_stores_raw():
     )
 
     if not stores:
+
         raise RuntimeError(
             "Hazi Hinam Stores file "
             "contained no stores."
@@ -492,50 +617,166 @@ def load_hazi_hinam_stores_raw():
 # NETTO HISSACHON
 # ==================================================
 
-def load_netto_hissachon_stores_raw():
-    """
-    SmartBasket currently supports the
-    Netto Hissachon Maalot branch.
+def find_netto_stores_file():
 
-    Store 043 was verified against the
-    Super Sapir / Bina price data.
-    """
+    params = {
+        "_": NETTO_CHAIN_ID,
+        "wReshet": "הכל",
+        "WFileType": "1",
+        "WDate": "",
+        "WStore": "",
+    }
 
-    locality_names = load_localities()
+    response = requests.get(
+        NETTO_FILES_URL,
+        params=params,
+        timeout=20,
+    )
 
-    city_code = ""
-    city_name = "מעלות-תרשיחא"
+    response.raise_for_status()
 
-    # Use the same official locality name that
-    # the other supermarket store files use.
-    for code, name in locality_names.items():
-        name_lower = name.lower()
+    files = response.json()
 
-        if (
-            "מעלות" in name
-            or "maalot" in name_lower
-        ):
-            city_code = str(code)
-            city_name = name
-            break
+    candidates = []
 
-    return [
-        Store(
-            chain="Netto Hissachon",
-            store_id="043",
-            name="נטו חיסכון מעלות",
-            city=city_name,
-            city_code=city_code,
-            address="החרושת 8",
-            subchain_id=None,
-            subchain_name="Netto Hissachon",
-            zipcode=None,
+    for file_info in files:
+
+        filename = file_info.get(
+            "FileNm",
+            "",
         )
-    ]
+
+        if not filename.startswith(
+            "Stores"
+        ):
+            continue
+
+        if not filename.lower().endswith(
+            ".gz"
+        ):
+            continue
+
+        candidates.append(
+            filename
+        )
+
+    if not candidates:
+
+        raise RuntimeError(
+            "Could not find Netto "
+            "Stores file."
+        )
+
+    candidates.sort()
+
+    return candidates[-1]
+
+
+def get_netto_download_url(
+    filename,
+):
+
+    response = requests.get(
+        (
+            NETTO_BASE_URL
+            + "Download.aspx?FileNm="
+            + filename
+        ),
+        timeout=20,
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    if not data:
+
+        raise RuntimeError(
+            "Could not get Netto "
+            "Stores download URL."
+        )
+
+    real_url = data[0].get(
+        "SPath"
+    )
+
+    if not real_url:
+
+        raise RuntimeError(
+            "Netto Stores download "
+            "URL is missing."
+        )
+
+    return real_url
+
+
+def load_netto_hissachon_stores_raw():
+
+    print(
+        "Finding Netto Hissachon "
+        "Stores file..."
+    )
+
+    locality_names = (
+        load_localities()
+    )
+
+    filename = (
+        find_netto_stores_file()
+    )
+
+    print(
+        "Found Netto Stores:",
+        filename,
+    )
+
+    download_url = (
+        get_netto_download_url(
+            filename
+        )
+    )
+
+    xml_bytes = download_xml(
+        download_url
+    )
+
+    all_stores = parse_stores_xml(
+        xml_bytes,
+        "Netto Hissachon",
+        locality_names,
+    )
+
+    netto_stores = []
+
+    for store in all_stores:
+
+        if "נטו" not in store.name:
+            continue
+
+        if not store.city:
+            continue
+
+        netto_stores.append(
+            store
+        )
+
+    if not netto_stores:
+
+        raise RuntimeError(
+            "No Netto Hissachon stores "
+            "with valid cities were found."
+        )
+
+    print(
+        "Netto Hissachon stores:",
+        len(netto_stores),
+    )
+
+    return netto_stores
 
 
 # ==================================================
-# SAFE LOADING
+# SAFE STORE LOADING
 # ==================================================
 
 def safe_load_stores(
@@ -543,15 +784,9 @@ def safe_load_stores(
     cache_key,
     loader,
 ):
-    """
-    Load one supermarket's store list.
-
-    If the external retailer is unavailable,
-    return an empty list instead of crashing
-    the whole SmartBasket application.
-    """
 
     try:
+
         return get_or_load(
             cache_key,
             loader,
@@ -559,6 +794,7 @@ def safe_load_stores(
         )
 
     except Exception as error:
+
         print()
         print("=" * 60)
 
@@ -588,6 +824,7 @@ def safe_load_stores(
 # ==================================================
 
 def load_all_stores():
+
     shufersal = safe_load_stores(
         "Shufersal",
         "shufersal_stores_v2",
@@ -608,7 +845,7 @@ def load_all_stores():
 
     netto_hissachon = safe_load_stores(
         "Netto Hissachon",
-        "netto_hissachon_stores_v1",
+        "netto_hissachon_stores_v3",
         load_netto_hissachon_stores_raw,
     )
 
@@ -625,6 +862,7 @@ def load_all_stores():
 # ==================================================
 
 if __name__ == "__main__":
+
     all_stores = load_all_stores()
 
     print(
@@ -640,7 +878,10 @@ if __name__ == "__main__":
         "=" * 70
     )
 
-    for chain, stores in all_stores.items():
+    for chain, stores in (
+        all_stores.items()
+    ):
+
         print(
             f"\n{chain}: "
             f"{len(stores)} stores"
@@ -665,7 +906,8 @@ if __name__ == "__main__":
             "\nExamples:"
         )
 
-        for store in stores[:5]:
+        for store in stores[:10]:
+
             print(
                 f"  {store.store_id}"
                 f" | {store.city}"
