@@ -15,6 +15,10 @@ from providers.hazi_hinam import (
 )
 
 
+# ==================================================
+# PRODUCT LOADING
+# ==================================================
+
 def load_all_products():
     print("\nLoading Carrefour...")
 
@@ -44,6 +48,10 @@ def load_all_products():
     }
 
 
+# ==================================================
+# TEXT NORMALIZATION
+# ==================================================
+
 def normalize_text(text):
     text = text.lower().strip()
 
@@ -64,11 +72,17 @@ def normalize_text(text):
     )
 
 
+# ==================================================
+# SEARCH SCORE
+# ==================================================
+
 def calculate_match_score(
     query,
     product_name,
 ):
-    query = normalize_text(query)
+    query = normalize_text(
+        query
+    )
 
     product_name = normalize_text(
         product_name
@@ -77,24 +91,61 @@ def calculate_match_score(
     if not query or not product_name:
         return 0
 
+
     query_tokens = query.split()
 
+    product_tokens = (
+        product_name.split()
+    )
+
+
+    # Count only COMPLETE words.
+    #
+    # Example:
+    # "חלב" matches "חלב טרי"
+    # but does NOT match "חלבון".
     matched_tokens = sum(
         1
         for token in query_tokens
-        if token in product_name
+        if token in product_tokens
     )
+
 
     coverage = (
         matched_tokens
         / len(query_tokens)
     )
 
+
+    if coverage == 0:
+        return 0
+
+
     if coverage == 1:
-        return 100
+        score = 100
 
-    return coverage * 70
+    else:
+        score = coverage * 70
 
+
+    # Small bonus when the product starts
+    # with the search phrase.
+    #
+    # Example:
+    # "חלב טרי 3%" will rank above
+    # "משקה עם חלב".
+    if product_name.startswith(
+        query
+    ):
+        score += 20
+
+
+    return score
+
+
+# ==================================================
+# BARCODE INDEX
+# ==================================================
 
 def build_barcode_index(
     all_products,
@@ -104,8 +155,13 @@ def build_barcode_index(
     for chain, products in (
         all_products.items()
     ):
+
         for product in products:
-            if product.barcode not in index:
+
+            if (
+                product.barcode
+                not in index
+            ):
                 index[
                     product.barcode
                 ] = {}
@@ -116,6 +172,10 @@ def build_barcode_index(
 
     return index
 
+
+# ==================================================
+# FIND SEARCH RESULTS
+# ==================================================
 
 def find_candidates(
     all_products,
@@ -130,13 +190,18 @@ def find_candidates(
 
     candidates = {}
 
+
     for chain, products in (
         all_products.items()
     ):
+
         for product in products:
 
-            # Direct barcode search
-            if query.strip() == product.barcode:
+            # Exact barcode search
+            if (
+                query.strip()
+                == product.barcode
+            ):
                 score = 1000
 
             else:
@@ -147,10 +212,13 @@ def find_candidates(
                     )
                 )
 
+
             if score < 45:
                 continue
 
+
             barcode = product.barcode
+
 
             chain_products = (
                 barcode_index.get(
@@ -159,38 +227,51 @@ def find_candidates(
                 )
             )
 
+
             chain_count = len(
                 chain_products
             )
+
 
             current = candidates.get(
                 barcode
             )
 
+
             candidate = {
                 "product": product,
                 "score": score,
                 "chain": chain,
-                "chain_count": chain_count,
-                "chain_products": chain_products,
+                "chain_count": (
+                    chain_count
+                ),
+                "chain_products": (
+                    chain_products
+                ),
             }
 
+
             if current is None:
+
                 candidates[
                     barcode
                 ] = candidate
+
 
             elif (
                 score
                 > current["score"]
             ):
+
                 candidates[
                     barcode
                 ] = candidate
 
+
     results = list(
         candidates.values()
     )
+
 
     results.sort(
         key=lambda result: (
@@ -200,8 +281,13 @@ def find_candidates(
         reverse=True,
     )
 
+
     return results[:limit]
 
+
+# ==================================================
+# BARCODE COMPARISON
+# ==================================================
 
 def compare_barcode(
     all_products,
@@ -212,9 +298,11 @@ def compare_barcode(
     for chain, products in (
         all_products.items()
     ):
+
         product = None
 
         for candidate in products:
+
             if (
                 candidate.barcode
                 == barcode
@@ -222,6 +310,8 @@ def compare_barcode(
                 product = candidate
                 break
 
-        comparison[chain] = product
+        comparison[
+            chain
+        ] = product
 
     return comparison
