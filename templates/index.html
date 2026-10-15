@@ -128,6 +128,62 @@
     </section>
 
 
+    <!-- ============================================
+         DATA AVAILABILITY WARNING
+    ============================================= -->
+
+    {% if unavailable_product_chains %}
+
+        <section class="card">
+
+            <h2>
+                ⚠️ Some price data is temporarily unavailable
+            </h2>
+
+            <p>
+                SmartBasket could not load product data for:
+
+                <strong>
+                    {{ unavailable_product_chains | join(", ") }}
+                </strong>
+            </p>
+
+            <p>
+                The comparison will continue using
+                the supermarkets whose data is available.
+            </p>
+
+        </section>
+
+    {% endif %}
+
+
+    {% if unavailable_promotion_chains %}
+
+        <section class="card">
+
+            <h2>
+                ⚠️ Some promotion data is temporarily unavailable
+            </h2>
+
+            <p>
+                Promotion data could not be loaded for:
+
+                <strong>
+                    {{ unavailable_promotion_chains | join(", ") }}
+                </strong>
+            </p>
+
+            <p>
+                Regular product prices are still available
+                when product data loaded successfully.
+            </p>
+
+        </section>
+
+    {% endif %}
+
+
 
     <!-- ============================================
          PROMOTION OFFER

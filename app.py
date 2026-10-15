@@ -13,6 +13,8 @@ from stores_loader import load_all_stores
 from store_data import (
     load_products_for_stores,
     load_promotions_for_stores,
+    get_unavailable_product_chains,
+    get_unavailable_promotion_chains,
 )
 
 from basket import (
@@ -347,6 +349,12 @@ def page_context(
     winner=None,
     pending_offer=None,
 ):
+    selected_stores = (
+        get_selected_stores(
+            request
+        )
+    )
+
     return {
         "basket": get_basket(
             request
@@ -366,6 +374,16 @@ def page_context(
         "selected_stores": (
             get_selected_store_details(
                 request
+            )
+        ),
+        "unavailable_product_chains": (
+            get_unavailable_product_chains(
+                selected_stores
+            )
+        ),
+        "unavailable_promotion_chains": (
+            get_unavailable_promotion_chains(
+                selected_stores
             )
         ),
     }

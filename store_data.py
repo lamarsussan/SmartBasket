@@ -32,11 +32,18 @@ from providers.hazi_hinam_promotions import (
 PRODUCT_MEMORY_CACHE = {}
 PROMOTION_MEMORY_CACHE = {}
 
-# Important:
-# this set remembers promotions that failed to load
-# during the current server run.
+
+# Remember failures during the current server run.
+#
+# This prevents SmartBasket from retrying the same
+# unavailable retailer on every user action.
+PRODUCT_FAILURE_CACHE = set()
 PROMOTION_FAILURE_CACHE = set()
 
+
+# ==================================================
+# CACHE KEY
+# ==================================================
 
 def cache_key(
     chain,
@@ -57,22 +64,35 @@ def safe_load(
     loader,
     default,
 ):
+    """
+    Run an external retailer loader safely.
+
+    If the retailer is unavailable, SmartBasket
+    prints a warning and continues instead of
+    crashing the entire application.
+    """
+
     try:
         return loader()
 
     except Exception as error:
+
         print()
         print("=" * 60)
+
         print(
             f"WARNING: {description} unavailable"
         )
+
         print(
             f"{type(error).__name__}: {error}"
         )
+
         print(
             "SmartBasket will continue "
             "without this data."
         )
+
         print("=" * 60)
         print()
 
@@ -96,7 +116,13 @@ def load_products_for_store(
         store_id,
     )
 
+
+    # ----------------------------------------------
+    # Already loaded successfully
+    # ----------------------------------------------
+
     if key in PRODUCT_MEMORY_CACHE:
+
         print(
             f"Memory cache: "
             f"{chain} products "
@@ -107,7 +133,28 @@ def load_products_for_store(
             key
         ]
 
+
+    # ----------------------------------------------
+    # Failed earlier during this server run
+    # ----------------------------------------------
+
+    if key in PRODUCT_FAILURE_CACHE:
+
+        print(
+            f"Skipping unavailable "
+            f"{chain} products "
+            f"store {store_id}"
+        )
+
+        return []
+
+
+    # ----------------------------------------------
+    # Carrefour
+    # ----------------------------------------------
+
     if chain == "Carrefour":
+
         products = safe_load(
             (
                 f"Carrefour products "
@@ -124,10 +171,16 @@ def load_products_for_store(
                     )
                 ),
             ),
-            [],
+            None,
         )
 
+
+    # ----------------------------------------------
+    # Shufersal
+    # ----------------------------------------------
+
     elif chain == "Shufersal":
+
         products = safe_load(
             (
                 f"Shufersal products "
@@ -144,10 +197,16 @@ def load_products_for_store(
                     )
                 ),
             ),
-            [],
+            None,
         )
 
+
+    # ----------------------------------------------
+    # Hazi Hinam
+    # ----------------------------------------------
+
     elif chain == "Hazi Hinam":
+
         products = safe_load(
             (
                 f"Hazi Hinam products "
@@ -164,16 +223,34 @@ def load_products_for_store(
                     )
                 ),
             ),
-            [],
+            None,
         )
+
 
     else:
         return []
 
-    if products:
-        PRODUCT_MEMORY_CACHE[
+
+    # ----------------------------------------------
+    # Loading failed
+    # ----------------------------------------------
+
+    if products is None:
+
+        PRODUCT_FAILURE_CACHE.add(
             key
-        ] = products
+        )
+
+        return []
+
+
+    # ----------------------------------------------
+    # Loading succeeded
+    # ----------------------------------------------
+
+    PRODUCT_MEMORY_CACHE[
+        key
+    ] = products
 
     return products
 
@@ -195,8 +272,13 @@ def load_promotions_for_store(
         store_id,
     )
 
-    # Successful promotions already loaded.
+
+    # ----------------------------------------------
+    # Already loaded successfully
+    # ----------------------------------------------
+
     if key in PROMOTION_MEMORY_CACHE:
+
         print(
             f"Memory cache: "
             f"{chain} promotions "
@@ -207,9 +289,13 @@ def load_promotions_for_store(
             key
         ]
 
-    # Failed earlier in this server run.
-    # Do not waste time trying again on every click.
+
+    # ----------------------------------------------
+    # Failed earlier during this server run
+    # ----------------------------------------------
+
     if key in PROMOTION_FAILURE_CACHE:
+
         print(
             f"Skipping unavailable "
             f"{chain} promotions "
@@ -218,7 +304,13 @@ def load_promotions_for_store(
 
         return []
 
+
+    # ----------------------------------------------
+    # Carrefour
+    # ----------------------------------------------
+
     if chain == "Carrefour":
+
         promotions = safe_load(
             (
                 f"Carrefour promotions "
@@ -238,7 +330,13 @@ def load_promotions_for_store(
             None,
         )
 
+
+    # ----------------------------------------------
+    # Shufersal
+    # ----------------------------------------------
+
     elif chain == "Shufersal":
+
         promotions = safe_load(
             (
                 f"Shufersal promotions "
@@ -258,7 +356,13 @@ def load_promotions_for_store(
             None,
         )
 
+
+    # ----------------------------------------------
+    # Hazi Hinam
+    # ----------------------------------------------
+
     elif chain == "Hazi Hinam":
+
         promotions = safe_load(
             (
                 f"Hazi Hinam promotions "
@@ -278,16 +382,27 @@ def load_promotions_for_store(
             None,
         )
 
+
     else:
         return []
 
-    # None means loading failed.
+
+    # ----------------------------------------------
+    # Loading failed
+    # ----------------------------------------------
+
     if promotions is None:
+
         PROMOTION_FAILURE_CACHE.add(
             key
         )
 
         return []
+
+
+    # ----------------------------------------------
+    # Loading succeeded
+    # ----------------------------------------------
 
     PROMOTION_MEMORY_CACHE[
         key
@@ -308,6 +423,7 @@ def load_products_for_stores(
     for chain, store_id in (
         selected_stores.items()
     ):
+
         result[chain] = (
             load_products_for_store(
                 chain,
@@ -326,6 +442,7 @@ def load_promotions_for_stores(
     for chain, store_id in (
         selected_stores.items()
     ):
+
         result[chain] = (
             load_promotions_for_store(
                 chain,
@@ -337,12 +454,77 @@ def load_promotions_for_stores(
 
 
 # ==================================================
+# AVAILABILITY STATUS
+# ==================================================
+
+def get_unavailable_product_chains(
+    selected_stores,
+):
+    """
+    Return selected supermarket chains whose
+    product data failed to load during this
+    server run.
+    """
+
+    unavailable = []
+
+    for chain, store_id in (
+        selected_stores.items()
+    ):
+
+        key = cache_key(
+            chain,
+            store_id,
+        )
+
+        if key in PRODUCT_FAILURE_CACHE:
+            unavailable.append(
+                chain
+            )
+
+    return unavailable
+
+
+def get_unavailable_promotion_chains(
+    selected_stores,
+):
+    """
+    Return selected supermarket chains whose
+    promotion data failed to load during this
+    server run.
+    """
+
+    unavailable = []
+
+    for chain, store_id in (
+        selected_stores.items()
+    ):
+
+        key = cache_key(
+            chain,
+            store_id,
+        )
+
+        if key in PROMOTION_FAILURE_CACHE:
+            unavailable.append(
+                chain
+            )
+
+    return unavailable
+
+
+# ==================================================
 # OPTIONAL CACHE RESET
 # ==================================================
 
 def clear_memory_cache():
+
     PRODUCT_MEMORY_CACHE.clear()
+
     PROMOTION_MEMORY_CACHE.clear()
+
+    PRODUCT_FAILURE_CACHE.clear()
+
     PROMOTION_FAILURE_CACHE.clear()
 
     print(
