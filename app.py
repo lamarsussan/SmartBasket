@@ -481,6 +481,7 @@ def choose_stores(
     shufersal_store: str = Form(""),
     carrefour_store: str = Form(""),
     hazi_hinam_store: str = Form(""),
+    netto_hissachon_store: str = Form(""),
 ):
     city = get_selected_city(
         request
@@ -501,6 +502,9 @@ def choose_stores(
         ),
         "Hazi Hinam": (
             hazi_hinam_store
+        ),
+        "Netto Hissachon": (
+            netto_hissachon_store
         ),
     }
 
